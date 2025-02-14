@@ -1,0 +1,106 @@
+---
+# execute when RH detected
+- import_tasks: fedora.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+# execute when debian detected
+- name: Go to specific Debian playbook
+  import_tasks: debian.yml
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Make loading module br_netfilter  and dummy persistent
+  copy:
+    dest: /etc/modules-load.d/k8s.conf
+    owner: root
+    group: root
+    content: "br_netfilter\ndummy"
+    mode: 'u=rwx,g=rx,a=rx'
+
+#- name: Allow calico to manage network devices
+#  copy:
+#    dest: /etc/NetworkManager/conf.d/calico.conf
+#    owner: root
+#    group: root
+#    content: "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:tunl*;interface-name:vxlan.calico;interface-name:vxlan-v6.calico;interface-name:wireguard.cali;interface-name:wg-v6.cali"
+#    mode: 'u=rwx,g=rx,a=rx'
+
+- name: Load the br_netfilter module
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Load the dummy  module
+  community.general.modprobe:
+    name: dummy
+    state: present
+
+- name: Load iptables bridge v4 v6 module
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    state: present
+    value: '1'
+    sysctl_file: "{{ k8s.sysctl_path }}"
+    reload: yes
+  with_items: "{{ k8s.modules }}"
+
+- name: Remove conflicting k8s packages
+  package:
+    name: "{{ item }}"
+    state: absent
+  with_items: "{{ k8s.conflicts.debian }}"
+
+- name: Install k8s packages
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ k8s.packages }}"
+
+- name: Enable service crio then ensures they are started
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  with_items: ["crio"]
+
+- name: Copy containerd config.toml
+  ansible.builtin.template:
+    src: "config-containerd.toml"
+    dest: "/etc/containerd/config.toml"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  notify: Restart containerd
+
+- name: Create dummy interface configurations
+  ansible.builtin.template:
+    src: "interface_dummy"
+    dest: "/etc/network/interfaces.d/eno490"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  notify: Restart networking
+
+- name: Force immediate handler execution
+  meta: flush_handlers
+
+- name: Copy haproxy configurations
+  ansible.builtin.template:
+    src: "haproxy.cfg.j2"
+    dest: "/etc/haproxy/haproxy.cfg"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  notify: Restart haproxy
+
+- name: Enable service crio then ensures they are started
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  with_items: ["haproxy"]
+
+- name: Adds controlplane info to host file
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "cp.example.com"
+    line: "2a01:db8:ffff:ffff:: cp.example.com"

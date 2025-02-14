@@ -1,0 +1,35 @@
+---
+- name: Install the fdio apt key
+  ansible.builtin.get_url:
+    url: https://packagecloud.io/fdio/release/gpgkey
+    dest: /etc/apt/keyrings/fdio_release-archive-keyring.gpg
+
+- name: Add fdio repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/fdio_release-archive-keyring.gpg] https://packagecloud.io/fdio/release/debian/ {{ ansible_distribution_release }} main"
+    state: present
+    filename: fdd
+
+#- name: Add fdio-src repository
+#  ansible.builtin.apt_repository:
+#    repo: "deb-src [signed-by=/etc/apt/keyrings/fdio_release-archive-keyring.gpg] https://packagecloud.io/fdio/release/debian/ {{ ansible_distribution_release }} main"
+#    state: present
+#    filename: fdd
+#
+- name: Install the latest version of ppp and fdd
+  ansible.builtin.package:
+    name:
+      - ppp
+      - bird2
+#      - vpp
+#      - vpp-plugin-core
+#      - vpp-plugin-dpkg
+    state: latest
+
+- name: set net.ipv4.conf.all.forwarding 1
+  ansible.posix.sysctl:
+    name: net.ipv4.conf.all.forwarding
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true

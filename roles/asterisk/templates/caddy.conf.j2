@@ -1,0 +1,14 @@
+:80 {% raw %} {
+ {% endraw %}
+{% set interface_asterisk = ansible_facts[asterisk.private_interface] %}
+	bind {{ interface_asterisk.ipv4.address }} [{{ interface_asterisk.ipv6[0].address }}]
+	root * {{ asterisk.www_root }}
+	log
+	file_server
+{% raw %} } {% endraw %}
+
+{% for domain in asterisk.dns_names %}
+{{ domain }}{% raw %} {
+
+} {% endraw %}
+{% endfor %}

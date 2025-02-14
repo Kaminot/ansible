@@ -1,0 +1,31 @@
+---
+
+- name: TRAEFIK - Add the firewall rule for keycloak apps
+  lineinfile:
+    insertafter: "chain input {"
+    regexp: "^tcp dport {{ item }} accept*"
+    line: "tcp dport {{ item }} accept comment \"K3s ingress ports\""
+    path: /etc/nftables.conf
+  loop: "{{ k3s_ingress.port }}"
+  notify:
+    - Restart nftables
+
+- name: K3S - Add the firewall rule for k3s control plane communications ipv4
+  lineinfile:
+    insertafter: "chain input {"
+    regexp: "^{{ item.1.protocol }} dport {{ item.1.port }} ip saddr {{ item.0 }}*"
+    line: "{{ item.1.protocol }} dport {{ item.1.port }} ip saddr {{ item.0 }} accept comment \"Docker Swarm\""
+    path: /etc/nftables.conf
+  loop: "{{ k3s.hosts4 | product(k3s.ports) | list }}"
+  notify:
+    - Restart nftables
+
+- name: K3S - Add the firewall rule for k3s control plane communications ipv6
+  lineinfile:
+    insertafter: "chain input {"
+    regexp: "^{{ item.1.protocol }} dport {{ item.1.port }} ip6 saddr {{ item.0 }}*"
+    line: "{{ item.1.protocol }} dport {{ item.1.port }} ip6 saddr {{ item.0 }} accept comment \"Docker Swarm\""
+    path: /etc/nftables.conf
+  loop: "{{ k3s.hosts6 | product(k3s.ports) | list }}"
+  notify:
+    - Restart nftables

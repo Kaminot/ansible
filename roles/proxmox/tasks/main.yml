@@ -1,0 +1,52 @@
+---
+
+- name: Makes sure that we are running debian 10
+  command: cat /etc/debian_version
+  failed_when: (ansible_facts['distribution'] == "Debian" and ansible_facts['distribution_major_version'] == 10)
+
+- name: Install the latest version of proxmox
+  apt:
+    name: ['proxmox-ve', 'postfix', 'open-iscsi']
+    state: latest
+    update_cache: yes
+
+- name: Update the /etc/hosts ip so pve listens correctly
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '.*{{ inventory_hostname }}$'
+    line: "{{ ansible_default_ipv4.address }} {{ inventory_hostname }}"
+    state: present
+
+- name: Allow root login from the loopback ip
+  blockinfile:
+    path: /etc/ssh/sshd_config
+    block: |
+      Match Address {{ ansible_default_ipv4.address }}
+               PermitRootLogin yes
+  notify:
+    - Restart sshd
+
+- name: Add {{ domain.name }} as authentication method
+  template:
+    src: domain.cfg
+    dest: /etc/pve/domains.cfg
+    owner: root
+    group: www-data
+    mode: u=rw,g=r,o=
+
+- name: Add users as proxmox administrators
+  template:
+    src: user.cfg.j2
+    dest: /etc/pve/user.cfg
+    owner: root
+    group: www-data
+    mode: u=rw,g=r,o=
+
+- name: Set up the firewall rules via nft
+  lineinfile:
+    insertafter: "chain input {"
+    line: "tcp dport 8006 ip saddr {{ ansible_default_ipv4.address }} accept comment \"Accept traffic to proxmox pveproxy from us\""
+    path: /etc/nftables.conf
+    regexp: "dport 8006"
+  notify:
+    - Restart nftables

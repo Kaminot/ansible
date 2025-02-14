@@ -1,0 +1,13 @@
+---
+- name: Update PAM with authselect
+  command: authselect select {{ authselect_profile }} {{ authselect_features|join(' ') }} {% if authselect_force %}--force{% endif %}
+
+- name: restart sssd
+  service:
+    name: "sssd"
+    state: "restarted"
+
+- name: restart sshd
+  service:
+    name: "sshd"
+    state: "restarted"

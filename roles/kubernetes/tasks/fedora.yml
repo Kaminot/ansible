@@ -1,0 +1,7 @@
+---
+
+- name: Install k8s dependencies
+  dnf:
+    name: "{{ item }}"
+    state: latest
+  with_items: "{{ k8s.fedora_packages }}"

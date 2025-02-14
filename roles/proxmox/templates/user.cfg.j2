@@ -1,0 +1,7 @@
+{% for user in active_users %}
+{% if user.proxmox_role is defined %}
+user:{{ user.name }}@{{ domain.name }}:1:0::::::
+acl:1:/:{{ user.name }}@{{ domain.name}}:{{ user.proxmox_role }}:
+{% endif %}
+{% endfor %}
+

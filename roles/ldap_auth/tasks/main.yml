@@ -1,0 +1,11 @@
+---
+
+# execute when RH detected
+- name: Go to specific redhat Playbook
+  import_tasks: fedora.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+  # execute when debian detected
+- name: Go to specific Debian playbook
+  import_tasks: debian.yml
+  when: ansible_facts['os_family'] == 'Debian'

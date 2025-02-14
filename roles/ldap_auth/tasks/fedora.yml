@@ -1,0 +1,100 @@
+---
+- name: Install sssd and ldap packages
+  yum:
+    name:
+      - sssd-ldap
+      - sssd-tools
+      - oddjob-mkhomedir
+      - oddjob
+      - openldap-clients
+    state: present
+
+- name: Insure pam ldap package are absents
+  yum:
+    name:
+      - nss-pam-ldapd
+    state: absent
+
+- name: Install pam-u2f
+  yum:
+    name:
+      - pam-u2f
+      - pamu2fcfg
+    state: latest
+
+- name: Get current authselect config
+  command: authselect current -r
+  register: authselect_current_raw
+  check_mode: no
+  changed_when: false
+  failed_when:
+    - authselect_current_raw.rc != 0
+    - '"No existing configuration detected" not in authselect_current_raw.stdout'
+
+- name: Set fact authselect_force true if no existing configuration detected.
+  set_fact:
+    authselect_force: true
+  when:
+    - '"No existing configuration detected" in authselect_current_raw.stdout'
+
+- name: Verify current authselect profile and features are in the desired state
+  set_fact:
+    authselect_current_profile: "{{ authselect_current_raw.stdout.split()[0] }}"
+    authselect_current_features: "{{ authselect_current_raw.stdout.split()[1:] }}"
+  changed_when:
+    - authselect_profile != authselect_current_profile or authselect_features|sort != authselect_current_features|sort or
+      authselect_current_raw.failed
+  notify:
+    - Update PAM with authselect
+
+- name: Copy authconfig setups for sssd
+  ansible.builtin.template:
+    src: authconfig-sssd.conf.j2
+    dest: /etc/sssd/conf.d/authconfig-sssd.conf
+    owner: root
+    group: root
+    mode: '0600'
+  notify:
+    - restart sssd
+
+- name: Copy ldap configs
+  ansible.builtin.template:
+    src: ldap.conf.j2
+    dest: /etc/openldap/ldap.conf
+    owner: root
+    group: root
+    mode: '0600'
+  notify:
+    - restart sssd
+
+- name: Copy custom certs to path
+  ansible.builtin.copy:
+    content: "{{ ldap.ca }}"
+    dest: /etc/openldap/certs/cacerts.pem
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - restart sssd
+
+- name: Set up the base configs for sshd
+  lineinfile:
+    firstmatch: yes
+    path: "/etc/ssh/sshd_config"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line  }}"
+  loop: "{{ sshd.config }}"
+  notify:
+    - restart sshd
+
+- name: makes sure oddjobd.service is enabled and started
+  ansible.builtin.service:
+    name: oddjobd.service
+    enabled: true
+    state: started
+
+- name: makes sure sssd.service is enabled and started
+  ansible.builtin.service:
+    name: sssd.service
+    enabled: true
+    state: started

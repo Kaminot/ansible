@@ -1,0 +1,14 @@
+---
+authselect_profile: "sssd"
+#authselect_features: ["with-sudo", "with-mkhomedir", "with-pam-u2f-2fa"]
+authselect_features: ["with-sudo", "with-mkhomedir"]
+authselect_force: 0
+
+sshd:
+  config:
+    - name: "AuthorizedKeysCommand"
+      regexp: "AuthorizedKeysCommand *"
+      line: "AuthorizedKeysCommand /usr/bin/sss_ssh_authorizedkeys"
+    - name: "AuthorizedKeysCommandUser"
+      regexp: "AuthorizedKeysCommandUser*"
+      line: "AuthorizedKeysCommandUser nobody"

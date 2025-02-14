@@ -1,0 +1,5 @@
+---
+
+domain:
+  name: example.com
+  ldap_server: ldap.example.com

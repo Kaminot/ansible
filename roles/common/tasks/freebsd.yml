@@ -1,0 +1,29 @@
+---
+
+- name: Install base packages
+  community.general.pkgng:
+    name: "{{ base.freebsd_packages }}"
+    state: latest
+
+- name: Create user
+  user:
+    create_home: yes
+    append: yes
+    state: "{{ item.state }}"
+    groups: wheel
+    name: "{{ item.name }}"
+    shell: "{{ item.shell | default('/bin/sh') }}"
+    password: "{{ item.user_password }}"
+    update_password: always
+  loop: "{{ active_users }}"
+
+# Set Up zabbix
+- name: create the /etc/zabbix directory
+  ansible.builtin.file:
+    path: /etc/zabbix
+    mode: u+rw,g+wx,o-rwx
+    owner: zabbix
+    group: zabbix
+    recurse: yes
+  notify:
+    - Restart zabbix_agentd

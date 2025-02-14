@@ -1,0 +1,65 @@
+#!/usr/sbin/nft -f
+
+# Sample configuration for nftables service.
+# Load this by calling 'nft -f /etc/nftables/main.nft'.
+
+# Note about base chain priorities:
+# The priority values used in these sample configs are
+# offset by 20 in order to avoid ambiguity when firewalld
+# is also running which uses an offset of 10. This means
+# that packets will traverse firewalld first and if not
+# dropped/rejected there will hit the chains defined here.
+# Chains created by iptables, ebtables and arptables tools
+# do not use an offset, so those chains are traversed first
+# in any case.
+
+# drop any existing nftables ruleset
+#flush ruleset
+#flush chain inet nftables_svc INPUT
+
+table inet filter {
+	chain input {
+		type filter hook input priority filter;
+		policy drop;
+	        icmpv6 type { nd-neighbor-solicit, nd-router-advert, nd-neighbor-advert } accept
+		icmp type echo-request limit rate 5/second accept
+		# Allow traffic from established and related packets, drop invalid
+	        ct state established, related accept;
+	
+	        # Allow loopback traffic.
+	        iifname lo accept
+
+		# Allow SSH on port TCP/6989
+	        tcp dport { 6989 } accept
+
+		# Define k8s_master
+                define k8s_master6 = { {{ k8s_master6 }} }
+		# Allow communications between k8s hosts
+                ip6 saddr $k8s_master6 tcp dport { 6443, 2379-2380, 10250, 10259, 10257, 30000-32767, 179, 5473 } accept
+		# Allow communications between ceph hosts
+                ip6 saddr $k8s_master6 tcp dport { 6800-7300, 3300, 6789 } accept
+		# Allow BGP communications with TOR
+                ip6 saddr $bgp_routers6 tcp dport { 169 } accept
+
+		# Allow all traffic to external svc range
+                ip6 daddr {{ external_svc_range }} accept
+		
+		jump allow
+		reject with icmpx type port-unreachable
+	
+	}
+	chain forward {
+		type filter hook forward priority filter;
+	}
+	chain output {
+		type filter hook output priority filter;
+	}
+}
+# By default, any forwarding traffic is allowed.
+# Uncomment the following line to filter it based
+# on the same criteria as input traffic.
+#include "/etc/nftables/router.nft"
+
+# Uncomment the following line to enable masquerading of
+# forwarded traffic. May be used with or without router.nft.
+#include "/etc/nftables/nat.nft"

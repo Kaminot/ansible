@@ -1,0 +1,127 @@
+---
+
+# execute when RH detected
+- name: Go to specific redhat Playbook
+  import_tasks: fedora.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+  # execute when debian detected
+- name: Go to specific Debian playbook
+  import_tasks: debian.yml
+  when: ansible_facts['os_family'] == 'Debian'
+
+  # execute when OpenBSD detected
+- name: Go to specific OpenBSD playbook
+  import_tasks: openbsd.yml
+  when: ansible_facts['os_family'] == 'OpenBSD'
+
+  # execute when FreeBSD detected
+- name: Go to specific FreeBSD playbook
+  import_tasks: freebsd.yml
+  when: ansible_facts['os_family'] == 'FreeBSD'
+
+- name: Install the key
+  ignore_errors: yes
+  authorized_key:
+    user: "{{ item.0.name }}"
+    state: "{{ item.0.state }}"
+    key: "{{ item.1 }}"
+  with_subelements:
+    - "{{ active_users }}"
+    - ssh_key
+
+- name: Set up the base configs for sshd
+  lineinfile:
+    firstmatch: yes
+    path: "/etc/ssh/sshd_config"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line  }}"
+  loop: "{{ sshd.config }}"
+  notify:
+    - Restart sshd
+
+# Set Up zabbix
+- name: Check whether zabbix certificate exists
+  stat:
+    path: /etc/zabbix/zabbix.pem
+  register: certificate_exists
+
+- name: Create private key for zabbix agent
+  community.crypto.openssl_privatekey:
+    path: /etc/zabbix/zabbix.key
+  when: certificate_exists.stat.exists == false
+
+- name: Create certificate signing request (CSR) for zabbix agent
+  community.crypto.openssl_csr_pipe:
+    common_name: "{{ inventory_hostname }}.example.com"
+    email_address: "admin@{{ inventory_hostname }}.example.com"
+    privatekey_path: /etc/zabbix/zabbix.key
+    extended_key_usage_critical: true
+    key_usage_critical: true
+    key_usage:
+      - digitalSignature
+      - keyAgreement
+    extended_key_usage:
+      - serverAuth
+      - clientAuth
+    subject_alt_name:
+      - "DNS:{{ ansible_hostname }}"
+      - "DNS:{{ inventory_hostname }}.example.net"
+  register: csr
+  when: certificate_exists.stat.exists == false
+
+- name: Sign certificate with our Zabbix CA
+  become: false
+  local_action:
+    module: community.crypto.x509_certificate_pipe
+    content: "{{ (certificate.content | b64decode) if certificate_exists.stat.exists else omit }}"
+    csr_content: "{{ csr.csr }}"
+    provider: ownca
+    ownca_path: "{{zabbix.ownca_cert_path}}"
+    ownca_privatekey_path: "{{zabbix.ownca_key_path}}"
+    ownca_privatekey_passphrase: "{{ zabbix.ca_key_passphrase }}"
+    ownca_not_after: +5000d  # valid for one year
+    ownca_not_before: "-1d"  # valid since yesterday
+  when: certificate_exists.stat.exists == false
+  register: certificate
+
+- name: Copy zabbix ca
+  ansible.builtin.template:
+    src: zabbix_ca.pem
+    dest: /etc/zabbix/zabbix_ca.pem
+    mode: u=rx,g=rx,o=rx
+
+- name: Write zabbix certificate file
+  copy:
+    dest: /etc/zabbix/zabbix.pem
+    content: "{{ certificate.certificate }}"
+  when: certificate is changed
+
+- name: Set up zabbix base config
+  ansible.builtin.template:
+    src: "zabbix_agentd.conf.j2"
+    dest: "/etc/zabbix/zabbix_agentd.conf"
+  notify:
+    - Restart zabbix_agent
+
+# If you want to use API token to be authenticated by Zabbix Server
+# https://www.zabbix.com/documentation/current/en/manual/web_interface/frontend_sections/administration/general#api-tokens
+- name: Set API token for zabbix
+  ansible.builtin.set_fact:
+    ansible_zabbix_auth_key: "{{ zabbix_api_key }}"
+
+#- name: Create host in zabbix API
+## Set task level following variables for Zabbix Server host in task
+#  vars:
+#    ansible_network_os: community.zabbix.zabbix
+#    ansible_connection: httpapi
+#    ansible_httpapi_port: 443
+#    ansible_httpapi_use_ssl: true
+#    ansible_httpapi_validate_certs: false
+#  become: false
+#  community.zabbix.zabbix_host:
+#    host_name: "{{ ansible_hostname }}"
+#    visible_name: "{{ ansible_hostname }}"
+#    status: enabled
+#    state: present
+#

@@ -1,0 +1,37 @@
+---
+
+k3s_ingress:
+  port:
+    - "80"
+    - "443"
+    - "8443"
+k3s:
+  ports:
+    - k3s_etcd0:
+      port: "2379"
+      protocol: "tcp"
+    - k3s_etcd1:
+      port: "2380"
+      protocol: "tcp"
+    - k3s_otv:
+      port: "8472"
+      protocol: "tcp"
+    - k3s_drivertlsd:
+      port: "2376"
+      protocol: "tcp"
+    - k3s_kubelet:
+      port: "10250"
+      protocol: "tcp"
+    - flannel_vxlan:
+      port: "8472"
+      protocol: "udp"
+    - k3s_api:
+      port: "6443"
+      protocol: "tcp"
+  hosts4:
+    - "10.0.0.1"
+    - "10.0.0.2"
+    - "10.0.0.3"
+  hosts6:
+    - "2001:db8::1"
+    - "2001:db8::2"

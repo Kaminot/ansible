@@ -1,0 +1,26 @@
+---
+
+- name: Restart sshd
+  ansible.builtin.service:
+    name: sshd
+    state: reloaded
+
+- name: Reload firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
+
+- name: Restart nftables
+  ansible.builtin.service:
+    name: nftables
+    state: restarted
+
+- name: Restart zabbix_agent
+  ansible.builtin.service:
+    name: zabbix-agent
+    state: restarted
+
+- name: Restart zabbix_agentd
+  ansible.builtin.service:
+    name: zabbix_agentd
+    state: restarted

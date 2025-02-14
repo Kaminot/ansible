@@ -1,0 +1,50 @@
+global
+    log /run/systemd/journal/stdout local0
+
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    user        haproxy
+    group       haproxy
+    daemon
+    # turn on stats unix socket
+    stats socket /var/lib/haproxy/stats
+
+    ssl-default-bind-ciphers PROFILE=SYSTEM
+    ssl-default-server-ciphers PROFILE=SYSTEM
+#---------------------------------------------------------------------
+# common defaults that all the 'listen' and 'backend' sections will
+# use if not designated in their block
+#---------------------------------------------------------------------
+defaults
+    option		    dontlognull
+    mode                    tcp
+    log                     global
+    option                  dontlognull
+    option forwardfor       except 127.0.0.0/8
+    option                  redispatch
+    retries                 3
+    timeout http-request    10s
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          1m
+    timeout server          1m
+    timeout http-keep-alive 10s
+    timeout check           10s
+    maxconn                 3000
+    
+#---------------------------------------------------------------------
+# kubelet frontend
+#---------------------------------------------------------------------
+frontend f_kubelet
+    bind [2a12:48c7:ffff:ffff::]:6443
+    mode tcp
+    default_backend             b-kubelet
+
+#---------------------------------------------------------------------
+# kubelet backend
+#---------------------------------------------------------------------
+backend b-kubelet
+{% for host in groups['kubernetes'] %}
+   server	kublet-{{ hostvars[host]['ansible_facts']['nodename'] }} [{{ hostvars[host]['ansible_facts']['default_ipv6']['address'] }}]:6443 check
+{% endfor %}

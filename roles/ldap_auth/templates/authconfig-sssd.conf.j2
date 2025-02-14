@@ -1,0 +1,52 @@
+[sssd]
+domains = default
+services = nss, pam, autofs, sudo, ssh, ifp
+debug_level = {{ ldap.debug_level }}
+[sudo]
+debug_level = {{ ldap.debug_level }}
+
+[domain/default]
+debug_level = {{ ldap.debug_level }}
+id_provider = ldap
+autofs_provider = ldap
+auth_provider = ldap
+auto_private_groups = true
+chpass_provider = ldap
+ldap_uri = ldaps://{{ ldap.server }}
+ldap_search_base = {{ ldap.base_dn }}
+ldap_id_use_start_tls = True
+cache_credentials = False
+ldap_tls_cacertdir = /etc/openldap/certs/cacerts.pem
+ldap_tls_reqcert = demand
+ldap_schema = rfc2307bis
+ldap_sudo_search_base = {{ ldap.sudoers_base }},{{ ldap.base_dn }}
+sudo_provider = ldap
+ldap_group_member = uniqueMember
+ldap_group_search_base = {{ ldap.group_base }},{{ ldap.base_dn }}
+enumerate = false
+ldap_group_object_class = posixGroup
+ldap_group_name = cn
+ldap_group_gid_number = gidNumber
+#auto_private_groups = true
+# If you have large groups (IE 50+ members), you should set this to True
+ignore_group_members = False
+ldap_access_filter = (|(memberof=cn=ssh-users,cn=groups,cn=accounts,dc=example,dc=com))
+access_provider = ldap
+ldap_user_member_of = memberof
+ldap_user_gecos = cn
+ldap_user_uuid = nsUniqueId
+ldap_group_uuid = nsUniqueId
+# This is really important as it allows SSSD to respect nsAccountLock
+ldap_account_expire_policy = rhds
+ldap_access_order = filter, expire
+# Setup for ssh keys
+# Inside /etc/ssh/sshd_config add the lines:
+#   AuthorizedKeysCommand /usr/bin/sss_ssh_authorizedkeys
+#   AuthorizedKeysCommandUser nobody
+# You can test with the command: sss_ssh_authorizedkeys <username>
+# The objectClass: nsAccount holds this attribute.
+ldap_user_ssh_public_key = sshPublicKey
+
+
+[nss]
+debug_level = {{ ldap.debug_level }}

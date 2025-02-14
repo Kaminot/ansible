@@ -1,0 +1,45 @@
+---
+
+- name: Install caddy packages
+  ansible.builtin.package:
+    name: "caddy"
+    state: latest
+
+- name: Create Caddy main config file
+  copy:
+    dest: /etc/caddy/Caddyfile
+    owner: root
+    group: root
+    content: "{\nemail {{ acme.email }}\n}\nimport Caddyfile.d/*"
+    mode: 'u=rwx,g=rx,a=rx'
+
+- name: Create caddyfile.d directory
+  ansible.builtin.file:
+    path: "/etc/caddy/Caddyfile.d"
+    state: directory
+
+- name: Create asterisk caddy config file
+  ansible.builtin.template:
+    src: "caddy.conf.j2"
+    dest: "/etc/caddy/Caddyfile.d/asterisk.conf"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  notify: Reload caddy
+
+
+- name: Enable service caddy, and make sure it is stated
+  ansible.builtin.service:
+    name: caddy
+    state: started
+    enabled: yes
+
+
+- name: Create LE cert update script to /usr/bin
+  ansible.builtin.template:
+    src: "asterisk_renewal_script.sh"
+    dest: "/usr/bin/ast-LE-update-{{ item }}.sh"
+    owner: root
+    group: root
+    mode: 'u=rxw,g=rx,o=rx'
+  loop: "{{ asterisk.dns_names }}"

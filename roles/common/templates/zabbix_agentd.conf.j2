@@ -1,0 +1,13 @@
+PidFile=/run/zabbix/zabbix_agentd.pid
+LogType=console
+Server=
+# ListenIP=0.0.0.0
+ServerActive=zabbix.example.com
+####### TLS-RELATED PARAMETERS #######
+TLSConnect=cert
+TLSAccept=cert
+TLSServerCertIssuer=
+TLSServerCertSubject=
+TLSCAFile=/etc/zabbix/zabbix_ca.pem
+TLSCertFile=/etc/zabbix/zabbix.pem
+TLSKeyFile=/etc/zabbix/zabbix.key

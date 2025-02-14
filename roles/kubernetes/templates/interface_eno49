@@ -1,0 +1,3 @@
+auto eno49:0
+iface eno49:0 inet6 static
+    address 2a12:48c7:ffff:ffff::/128

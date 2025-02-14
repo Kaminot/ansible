@@ -1,0 +1,16 @@
+---
+
+- name: Restart caddy
+  ansible.builtin.service:
+    name: caddy
+    state: restarted
+
+- name: Reload caddy
+  ansible.builtin.service:
+    name: caddy
+    state: reloaded
+
+- name: Restart networking
+  ansible.builtin.service:
+    name: networking
+    state: restarted

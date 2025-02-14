@@ -1,0 +1,31 @@
+---
+
+- name: '[REPO] - Add Google K8s Key'
+  ansible.builtin.copy:
+    content: "{{ k8s.repo.k8s.debian.gpg.keyinline }}"
+    dest: "{{ k8s.repo.k8s.debian.gpg.dest }}"
+    mode: "u=rw,g=r,o=r"
+
+- name: '[REPO] - Add Google k8s repository'
+  apt_repository:
+    repo: "deb [signed-by={{ k8s.repo.k8s.debian.gpg.dest }}] {{ k8s.repo.k8s.debian.url }}"
+    state: present
+    filename: kubernetes
+
+- name: '[REPO] - Add crio apt Key'
+  ansible.builtin.copy:
+    content: "{{ k8s.repo.crio.debian.gpg.keyinline }}"
+    dest: "{{ k8s.repo.crio.debian.gpg.dest }}"
+    mode: "u=rw,g=r,o=r"
+
+- name: '[REPO] - add crio official repository for Debian'
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by={{ k8s.repo.crio.debian.gpg.dest }}] {{ k8s.repo.crio.debian.url }}"
+    filename: crio
+    state: present
+
+- name: Install dependencies packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ k8s.dependencies.debian }}"
