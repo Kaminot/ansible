@@ -1,0 +1,27 @@
+---
+
+all:
+  hosts:
+    exampledebian:
+      ansible_port: 2222
+      ansible_host: exampledebian.example.com
+      asterisk:
+        www_root: '/var/www/html'
+        private_interface: "ens3"
+        dns_names:
+          - 'pbx.example.com'
+    examplefreebsd:
+      ansible_port: "2222"
+      ansible_host: "2a01:db8::1"
+      # In some cases (BSDs) ansible needs a little help
+      ansible_python_interpreter: /usr/local/bin/python
+  children:
+    asterisk:
+      hosts:
+        exampledebian:
+    ldap:
+      hosts:
+        exampledebian:
+    kubernetes:
+      hosts:
+        exampledebian:

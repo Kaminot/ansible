@@ -1,0 +1,31 @@
+---
+
+ansible_python_interpreter: /usr/bin/python3
+zabbix_api_key: 123879382 
+base:
+  fedora_packages: ['vim', 'htop', 'zsh', 'cronie', 'zabbix-agent']
+  debian_packages: ['vim', 'emacs', 'zsh', 'htop', 'nftables', 'sudo', 'gnupg2', 'zabbix-agent', 'vlan', 'python3-cryptography']
+  openbsd_packages: ['vim--gtk3', 'emacs--gtk3', 'zsh', 'htop', 'sudo--', 'gnupg', 'zabbix-agent', 'py3-cryptography']
+  freebsd_packages: ['vim', 'emacs', 'zsh', 'htop', 'sudo', 'gnupg', 'zabbix64-agent', 'py39-cryptography']
+zabbix:
+  ca_key_passphrase: secure123 
+  ownca_key_path: /path/to/zabbix_ca/zabbix_ca.key
+  ownca_cert_path: /path/to/zabbix_ca/zabbix_ca-fullchain.pem
+
+# Ssh keys
+active_users:
+  - name: myuser
+    state: present
+    user_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+    ssh_key:
+      - ssh-ed25519 AAA
+ldap:
+  debug_level: 0
+  base_dn: "dc=example,dc=com"
+  sudoers_base: "cn=sudoers"
+  group_base: "cn=groups"
+  server: "ldap.example.com"
+  ca: |
+      -----BEGIN CERTIFICATE-----
+      -----END CERTIFICATE-----
